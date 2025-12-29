@@ -140,10 +140,13 @@ const updateSessionState = async (newSession: Session | null) => {
   const handleGoogleLogin = async () => {
     setIsGoogleLoading(true);
     try {
+      // Get the base URL - use environment variable if available, fallback to window.location.origin
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+      
       await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/rewards`,
+          redirectTo: `${baseUrl}/rewards`,
         },
       });
     } catch (error: unknown) {
@@ -158,10 +161,13 @@ const updateSessionState = async (newSession: Session | null) => {
   const handleSignup = async () => {
     clearError();
     try {
+      // Get the base URL - use environment variable if available, fallback to window.location.origin
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+      
       const { error } = await supabase.auth.signUp({
         email,
         password,
-        options: { emailRedirectTo: `${window.location.origin}/rewards` },
+        options: { emailRedirectTo: `${baseUrl}/rewards` },
       });
 
       if (error) {
