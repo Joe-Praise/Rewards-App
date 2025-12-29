@@ -22,7 +22,7 @@ export function useUser(): UseAuthReturn {
     }
     
     // Fallback to window.location.origin
-    console.log('Falling back to window.location.origin:', window.location.origin);
+    // console.log('Falling back to window.location.origin:', window.location.origin);
     return window.location.origin;
   };
 
@@ -49,25 +49,18 @@ const fetchUserProfile = async (session: Session) => {
   setIsLoading(true);
 
   try {
-    // Don't call ensureUserSetup - let the trigger handle profile creation
-    // await ensureUserSetup(authUser.id);
-
     const { data: profile } = await supabase
       .from("profiles")
       .select("id, points_balance, created_at")
       .maybeSingle();
 
-    // setUser({
-    //   ...profile,
-    //   email: authUser.email,
-    // });
     setUser({
       id: profile?.id || authUser.id,
       email: authUser.email,
       user_id: authUser.id,
       full_name: authUser.user_metadata?.full_name,
       avatar_url: authUser.user_metadata?.avatar_url,
-      tasks_created: 0, // Default value, can be updated from profile if available
+      tasks_created: 0,
       points_balance: profile?.points_balance || 0,
       created_at: profile?.created_at,
     });
@@ -118,10 +111,8 @@ const updateSessionState = async (newSession: Session | null) => {
         email,
         password,
       });
+
       if (error) setError(error.message);
-      console.log("✅ User logged in:", email, user);
-      
-      // Get the base URL - use environment variable if available, fallback to window.location.origin
       const baseUrl = getBaseUrl();
       router.push(`${baseUrl}/rewards`);
     } catch (error: unknown) {
@@ -188,7 +179,6 @@ const updateSessionState = async (newSession: Session | null) => {
         console.error("Error initializing auth:", error);
         const errorMessage = error instanceof Error ? error.message : 'An error occurred during initialization';
         setError(errorMessage);
-        // await signOut();
       }
     };
 

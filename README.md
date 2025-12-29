@@ -2,6 +2,8 @@
 
 A comprehensive rewards and gamification platform built with Next.js that allows users to earn points, maintain streaks, refer friends, and redeem rewards. The application features a modern dashboard with engaging animations and real-time updates.
 
+🌟 **[Live Demo](https://rewards-app-black.vercel.app/)** 🌟
+
 ## ✨ Features
 
 ### Core Functionality
@@ -214,4 +216,4 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_production_supabase_key
 
 ---
 
-Built with ❤️ using Next.js, TypeScript, and Supabase.
+Built by BATMAN! using Next.js, TypeScript, and Supabase.
