@@ -1,0 +1,231 @@
+'use client';
+import { useState, useEffect } from "react";
+import { User } from "@/types/models";
+import { UseAuthReturn } from "@/types/auth";
+import { createBrowserClient } from "@supabase/ssr";
+import { Session } from "@supabase/supabase-js";
+import { useRouter } from "next/navigation";
+
+export function useUser(): UseAuthReturn {
+  const router = useRouter();
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+
+  // State
+  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isLoginLoading, setIsLoginLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isSignUpMode, setIsSignUpMode] = useState(false);
+
+  // Helper functions
+  const clearError = () => setError(null);
+
+  // async function ensureUserSetup(userId: string) {
+  //   // With RLS, we can just query our own profile without filtering
+  //   const { data: profile } = await supabase
+  //     .from("profiles")
+  //     .select("id")
+  //     .maybeSingle();
+
+  //   if (!profile) {
+  //     // Don't manually insert profile - let the trigger handle it
+  //     // const { error } = await supabase.from("profiles").insert({
+  //     //   id: userId,
+  //     // });
+
+  //     // if (error) {
+  //     //   console.error("Failed to create profile:", error);
+  //     //   // Don't throw - let the app continue, might be a timing issue with trigger
+  //     // }
+  //   }
+  // }
+
+const fetchUserProfile = async (session: Session) => {
+  const authUser = session.user;
+
+  if (!authUser.email) return;
+
+  setIsLoading(true);
+
+  try {
+    // Don't call ensureUserSetup - let the trigger handle profile creation
+    // await ensureUserSetup(authUser.id);
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("id, points_balance, created_at")
+      .maybeSingle();
+
+    // setUser({
+    //   ...profile,
+    //   email: authUser.email,
+    // });
+    setUser({
+      id: profile?.id || authUser.id,
+      email: authUser.email,
+      user_id: authUser.id,
+      full_name: authUser.user_metadata?.full_name,
+      avatar_url: authUser.user_metadata?.avatar_url,
+      tasks_created: 0, // Default value, can be updated from profile if available
+      points_balance: profile?.points_balance || 0,
+      created_at: profile?.created_at,
+    });
+  } catch (error) {
+    console.error("Profile bootstrap failed:", error);
+    setError("Failed to initialize user profile");
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+
+const updateSessionState = async (newSession: Session | null) => {
+  setSession(newSession);
+  setIsLoggedIn(!!newSession);
+
+  if (newSession) {
+    await fetchUserProfile(newSession);
+  } else {
+    setUser(null);
+    setIsLoading(false);
+  }
+};
+
+  // Auth methods
+  const signOut = async () => {
+    try {
+      await supabase.auth.signOut();
+      setSession(null);
+      setUser(null);
+      setIsLoggedIn(false);
+      setEmail("");
+      setPassword("");
+      window.localStorage.removeItem("supabase.auth.token");
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'An error occurred during sign out';
+      setError(errorMessage);
+      console.error("Error signing out:", error);
+    }
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    clearError();
+    setIsLoginLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (error) setError(error.message);
+      console.log("✅ User logged in:", email, user);
+      router.push( `${window.location.origin}/rewards`);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'An error occurred during login';
+      setError(errorMessage);
+      console.error("Error logging in:", error);
+    } finally {
+      setIsLoginLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setIsGoogleLoading(true);
+    try {
+      await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/rewards`,
+        },
+      });
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'An error occurred during Google login';
+      setError(errorMessage);
+      console.error("Error with Google login:", error);
+    } finally {
+      setIsGoogleLoading(false);
+    }
+  };
+
+  const handleSignup = async () => {
+    clearError();
+    try {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { emailRedirectTo: `${window.location.origin}/rewards` },
+      });
+
+      if (error) {
+        setError(error.message);
+      } else {
+        setError("Please check your email to confirm your account");
+      }
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'An error occurred during signup';
+      setError(errorMessage);
+      console.error("Error signing up:", error);
+    }
+  };
+
+  // Initialize auth state
+  useEffect(() => {
+    const initAuth = async () => {
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        await updateSessionState(session);
+      } catch (error: unknown) {
+        console.error("Error initializing auth:", error);
+        const errorMessage = error instanceof Error ? error.message : 'An error occurred during initialization';
+        setError(errorMessage);
+        // await signOut();
+      }
+    };
+
+    initAuth();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      updateSessionState(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  return {
+    // State
+    user,
+    session,
+    email,
+    password,
+    isLoggedIn,
+    isLoading,
+    isLoginLoading,
+    isGoogleLoading,
+    error,
+    isSignUpMode,
+
+    // Operations
+    signOut,
+    handleLogin,
+    handleGoogleLogin,
+    handleSignup,
+    setEmail,
+    setPassword,
+    setIsSignUpMode,
+    clearError,
+  };
+}
+
+export default useUser;
