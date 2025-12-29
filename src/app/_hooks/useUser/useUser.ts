@@ -13,6 +13,19 @@ export function useUser(): UseAuthReturn {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
+  // Helper function to get base URL consistently
+  const getBaseUrl = () => {
+    // Check for environment variable first
+    if (process.env.NEXT_PUBLIC_APP_URL) {
+      // console.log('Using NEXT_PUBLIC_APP_URL:', process.env.NEXT_PUBLIC_APP_URL);
+      return process.env.NEXT_PUBLIC_APP_URL;
+    }
+    
+    // Fallback to window.location.origin
+    console.log('Falling back to window.location.origin:', window.location.origin);
+    return window.location.origin;
+  };
+
   // State
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -27,26 +40,6 @@ export function useUser(): UseAuthReturn {
 
   // Helper functions
   const clearError = () => setError(null);
-
-  // async function ensureUserSetup(userId: string) {
-  //   // With RLS, we can just query our own profile without filtering
-  //   const { data: profile } = await supabase
-  //     .from("profiles")
-  //     .select("id")
-  //     .maybeSingle();
-
-  //   if (!profile) {
-  //     // Don't manually insert profile - let the trigger handle it
-  //     // const { error } = await supabase.from("profiles").insert({
-  //     //   id: userId,
-  //     // });
-
-  //     // if (error) {
-  //     //   console.error("Failed to create profile:", error);
-  //     //   // Don't throw - let the app continue, might be a timing issue with trigger
-  //     // }
-  //   }
-  // }
 
 const fetchUserProfile = async (session: Session) => {
   const authUser = session.user;
@@ -127,7 +120,10 @@ const updateSessionState = async (newSession: Session | null) => {
       });
       if (error) setError(error.message);
       console.log("✅ User logged in:", email, user);
-      router.push( `${window.location.origin}/rewards`);
+      
+      // Get the base URL - use environment variable if available, fallback to window.location.origin
+      const baseUrl = getBaseUrl();
+      router.push(`${baseUrl}/rewards`);
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'An error occurred during login';
       setError(errorMessage);
@@ -140,8 +136,7 @@ const updateSessionState = async (newSession: Session | null) => {
   const handleGoogleLogin = async () => {
     setIsGoogleLoading(true);
     try {
-      // Get the base URL - use environment variable if available, fallback to window.location.origin
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+      const baseUrl = getBaseUrl();
       
       await supabase.auth.signInWithOAuth({
         provider: "google",
@@ -161,8 +156,7 @@ const updateSessionState = async (newSession: Session | null) => {
   const handleSignup = async () => {
     clearError();
     try {
-      // Get the base URL - use environment variable if available, fallback to window.location.origin
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+      const baseUrl = getBaseUrl();
       
       const { error } = await supabase.auth.signUp({
         email,
