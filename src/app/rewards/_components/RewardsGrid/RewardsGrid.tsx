@@ -7,7 +7,7 @@ import { useRewardsWithStatus, useRedeemReward } from './useRewards';
 import { RewardsGridProps } from './types';
 
 const getCategoryIcon = (category: string) => {
-    switch (category.toLowerCase()) {
+    switch (category?.toLowerCase()) {
         case 'shopping': return ShoppingBag;
         case 'food & drink': return Coffee;
         case 'finance': return DollarSign;
@@ -136,7 +136,7 @@ export default function RewardsGrid({ activeFilter }: RewardsGridProps) {
                                 {/* Points Display */}
                                 <div className="flex items-center justify-center gap-1 text-yellow-500">
                                     <Star className="h-4 w-4 fill-current" />
-                                    <span className="font-semibold text-primary">{reward.points_required.toLocaleString()} pts</span>
+                                    <span className="font-semibold text-primary">{reward.points_required?.toLocaleString()} pts</span>
                                 </div>
 
                                 {/* Action Button */}
